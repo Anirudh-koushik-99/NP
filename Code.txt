@@ -1,0 +1,87 @@
+def binary_addition(a, b, carry):
+
+    """Adds two binary strings and a carry."""
+
+    result, carry_out = [], 0
+
+    for i in range(len(a) - 1, -1, -1):
+
+        bit_sum = int(a[i]) + int(b[i]) + carry
+
+        result.append(str(bit_sum % 2))
+
+        carry = bit_sum // 2
+
+    return ''.join(result[::-1]), carry
+
+
+
+def compute_checksum(a):
+
+    """Generates the checksum by adding binary strings and inverting the result."""
+
+    max_len = max(map(len, a))
+
+    a = [x.zfill(max_len) for x in a]
+
+    checksum, carry = '0' * max_len, 0   
+
+    for binary in a:
+
+        checksum, carry = binary_addition(checksum, binary, carry)    
+
+    while carry:
+
+        checksum, carry = binary_addition(checksum, bin(carry)[2:].zfill(max_len), 0)    
+
+    return ''.join('1' if x == '0' else '0' for x in checksum)
+
+
+
+def verify_checksum(a, checksum):
+
+    """Verifies the checksum for the received binary strings."""
+
+    max_len = len(a[0])
+
+    a = [x.zfill(max_len) for x in a]
+
+    total_sum, carry = '0' * max_len, 0    
+
+    for binary in a:
+
+        total_sum, carry = binary_addition(total_sum, binary, carry)    
+
+    while carry:
+
+        total_sum, carry = binary_addition(total_sum, bin(carry)[2:].zfill(max_len), 0)    
+
+    total_sum, carry = binary_addition(total_sum, checksum, 0)
+
+    return all(bit == '1' for bit in total_sum)
+
+
+
+def main():
+
+    n = int(input("Enter the number of input strings: "))
+
+    a = [input("Enter binary string: ") for _ in range(n)] 
+
+    checksum = compute_checksum(a)
+
+    print("Checksum from Sender =", checksum)
+
+    a = [input("Enter binary string for verification: ") for _ in range(n)] 
+
+    if verify_checksum(a, checksum):
+
+        print("There is no error detected.")
+
+    else:
+
+        print("There is an error detected.")
+
+if __name__ == "__main__":
+
+    main()
