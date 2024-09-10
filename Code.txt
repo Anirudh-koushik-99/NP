@@ -1,87 +1,348 @@
+Error Correction
+
 def binary_addition(a, b, carry):
-
     """Adds two binary strings and a carry."""
-
     result, carry_out = [], 0
-
     for i in range(len(a) - 1, -1, -1):
-
         bit_sum = int(a[i]) + int(b[i]) + carry
-
         result.append(str(bit_sum % 2))
-
         carry = bit_sum // 2
-
     return ''.join(result[::-1]), carry
 
-
-
 def compute_checksum(a):
-
     """Generates the checksum by adding binary strings and inverting the result."""
-
     max_len = max(map(len, a))
-
     a = [x.zfill(max_len) for x in a]
-
     checksum, carry = '0' * max_len, 0   
-
     for binary in a:
-
         checksum, carry = binary_addition(checksum, binary, carry)    
-
     while carry:
-
         checksum, carry = binary_addition(checksum, bin(carry)[2:].zfill(max_len), 0)    
-
     return ''.join('1' if x == '0' else '0' for x in checksum)
 
-
-
 def verify_checksum(a, checksum):
-
     """Verifies the checksum for the received binary strings."""
-
     max_len = len(a[0])
-
     a = [x.zfill(max_len) for x in a]
-
     total_sum, carry = '0' * max_len, 0    
-
     for binary in a:
-
         total_sum, carry = binary_addition(total_sum, binary, carry)    
-
     while carry:
-
         total_sum, carry = binary_addition(total_sum, bin(carry)[2:].zfill(max_len), 0)    
-
     total_sum, carry = binary_addition(total_sum, checksum, 0)
-
     return all(bit == '1' for bit in total_sum)
-
-
 
 def main():
 
     n = int(input("Enter the number of input strings: "))
-
     a = [input("Enter binary string: ") for _ in range(n)] 
-
     checksum = compute_checksum(a)
-
     print("Checksum from Sender =", checksum)
-
     a = [input("Enter binary string for verification: ") for _ in range(n)] 
-
     if verify_checksum(a, checksum):
-
         print("There is no error detected.")
-
     else:
-
         print("There is an error detected.")
 
 if __name__ == "__main__":
-
     main()
+
+============================================================================================================================================================================================================
+
+
+Distance Vector
+
+
+class NetworkGraph:
+    def __init__(self):
+        self.nodes = set()
+        self.edges = {}
+
+    def add_edge(self, from_node, to_node, cost):
+        self.nodes.add(from_node)
+        self.nodes.add(to_node)
+        self.edges[(from_node, to_node)] = cost
+
+def bellman_ford(graph, source):
+    distance = {node: float('inf') for node in graph.nodes}
+    distance[source] = 0
+
+    for _ in range(len(graph.nodes) - 1):
+        for from_node, to_node in graph.edges:
+            new_distance = distance[from_node] + graph.edges[(from_node, to_node)]
+            if new_distance < distance[to_node]:
+                distance[to_node] = new_distance
+
+    return distance
+
+def main():
+    network = NetworkGraph()
+    network.add_edge("A", "B", 1)
+    network.add_edge("B", "C", 1)
+    network.add_edge("A", "D", 1)
+    network.add_edge("B", "D", 1)
+    network.add_edge("C", "D", 1)
+    network.add_edge("C", "E", 1)
+    network.add_edge("C", "F", 1)
+    network.add_edge("D", "E", 1)
+    network.add_edge("D", "F", 1)
+    network.add_edge("E", "F", 1)
+
+    source_node = "A"
+    distances = bellman_ford(network, source_node)
+
+    for node, distance in distances.items():
+        print(f"Distance from {source_node} to {node}: {distance}")
+
+if __name__ == "__main__":
+    main()
+
+============================================================================================================================================================================================================
+
+Remote Exec
+
+Client
+
+import socket
+
+serverName = "127.0.0.1"
+serverPort = 65431
+
+with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as clientSocket:
+    clientSocket.connect((serverName, serverPort))
+
+    while True:
+        command = input('Enter the command (or "exit" to quit):\n')
+        if not command:
+            print("Empty command")
+            continue
+        
+        clientSocket.send(command.encode())
+        response = clientSocket.recv(1024).decode()
+        print(f'From Server:\n{response}')
+        
+        if command == "exit":
+            break
+Server
+
+import socket
+import subprocess
+
+serverName = "127.0.0.1"
+serverPort = 65431
+
+with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as serverSocket:
+    serverSocket.bind((serverName, serverPort))
+    serverSocket.listen(1)
+    print("The server is ready to receive")
+    
+    while True:
+        connectionSocket, addr = serverSocket.accept()
+        
+        while True:
+            request = connectionSocket.recv(1024).decode()
+            print(f'Received the request:\n{request}')
+            
+            if request == "exit":
+                connectionSocket.send('Session terminated'.encode())
+                break
+            
+            status, output = subprocess.getstatusoutput(request)
+            response = output if status == 0 else f'Error: {output}'
+            connectionSocket.send(response.encode())
+            
+        print('Bye')
+        connectionSocket.close()
+
+============================================================================================================================================================================================================
+
+Multi Cast
+
+receiver
+
+from socket import *
+import struct
+
+socketfd = socket(AF_INET, SOCK_DGRAM,0)
+socketfd.setsockopt(SOL_SOCKET, SO_REUSEADDR, 1)
+port = 4321
+socketfd.bind(("", port))
+group = '224.0.0.1'
+mreq = struct.pack("!4sl", inet_aton(group), INADDR_ANY)
+socketfd.setsockopt(IPPROTO_IP, IP_ADD_MEMBERSHIP, mreq)
+print("Waiting for Message")
+while True:
+    print(socketfd.recv(1024).decode())
+
+sender
+
+import socket
+import time
+
+multicast_group = ('224.0.0.1', 4321)
+
+sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+sock.setsockopt(socket.IPPROTO_IP, socket.IP_MULTICAST_TTL, 16)
+
+while True:
+    message = input("Enter message for multicast: ")
+    print("Sending message")
+    sock.sendto(message.encode(), multicast_group)
+    time.sleep(1)
+
+============================================================================================================================================================================================================
+
+Concurrent and Iterative
+
+client1, client2
+
+import socket
+
+PORT = 4444
+
+clientSocket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+serverAddr = ('127.0.0.1', PORT)
+
+try:
+    clientSocket.connect(serverAddr)
+    print("Connected to Server.\n")
+
+    while True:
+        data = clientSocket.recv(1024)
+
+        if not data:
+            break
+
+        print(f"Server: {data.decode('utf-8')}")
+
+except Exception as e:
+    print(f"Error in connection: {e}")
+
+finally:
+    clientSocket.close()
+
+server1
+
+import socket
+import multiprocessing
+
+PORT = 4444
+
+def handle_client(clientSocket, cliAddr, cnt):
+    print(f"Connection accepted from {cliAddr[0]}:{cliAddr[1]}")
+    print(f"Clients connected: {cnt}\n")
+
+    clientSocket.send(b"hi client")
+    clientSocket.close()
+
+def main():
+    sockfd = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+    serverAddr = ('127.0.0.1', PORT)
+    sockfd.bind(serverAddr)
+    sockfd.listen(10)
+
+    print("Listening...\n")
+
+    cnt = 0
+    while True:
+        clientSocket, cliAddr = sockfd.accept()
+        cnt += 1
+
+        process = multiprocessing.Process(target=handle_client, args=(clientSocket, cliAddr, cnt))
+        process.start()
+
+if __name__ == "__main__":
+    main()
+
+============================================================================================================================================================================================================
+
+Diffie hellman
+
+import math
+
+def power(a, b, P):
+    return a ** b % P
+
+def gcd(a, b):
+    while b:
+        a, b = b, a % b
+    return a
+
+def d_h(P, G):
+    a, b = 4, 3
+
+    print("The value of P:", P)
+    print("The value of G:", G)
+    print("The private key a for Alice:", a)
+    x = power(G, a, P)
+    print("The private key b for Bob:", b)
+    y = power(G, b, P)
+    ka = power(y, a, P)
+    kb = power(x, b, P)
+    print("Secret key for Alice is:", ka)
+    print("Secret key for Bob is:", kb)
+
+def rsa(p, q):
+    n = p * q
+    phi = (p - 1) * (q - 1)
+    e = 7
+
+    while gcd(e, phi) != 1:
+        e += 1
+
+    d = pow(e, -1, phi)
+    message = 11
+    c = pow(message, e, n)
+    m = pow(c, d, n)
+
+    print("Original Message =", message)
+    print("p =", p)
+    print("q =", q)
+    print("n = pq =", n)
+    print("phi =", phi)
+    print("e =", e)
+    print("d =", d)
+    print("Encrypted message =", c)
+    print("Decrypted message =", m)
+
+if __name__ == "__main__":
+    p, q = 13, 11
+    print("RSA Algorithm:")
+    rsa(p, q)
+
+    print("\n\nDiffie Hellman Algorithm..")
+    d_h(p, q)
+
+============================================================================================================================================================================================================
+from socket import *
+
+serverName = "127.0.0.1"
+serverPort = 12000
+
+clientSocket = socket(AF_INET, SOCK_STREAM)
+clientSocket.connect((serverName,serverPort))
+
+sentence = str(input("Enter file name : "))
+clientSocket.send(sentence.encode())
+filecontents = clientSocket.recv(1024).decode()
+print ('From Server:', filecontents)
+
+clientSocket.close()
+
+from socket import *
+
+serverName= "127.0.0.1"
+serverPort = 12000
+
+serverSocket = socket(AF_INET,SOCK_STREAM)
+serverSocket.bind((serverName,serverPort))
+serverSocket.listen(1)
+print ("The server is ready to receive")
+while 1:
+    connectionSocket, addr = serverSocket.accept()
+    sentence = connectionSocket.recv(1024).decode() 
+    file=open(sentence,"r")
+    l=file.read(1024) 
+    connectionSocket.send(l.encode())
+    file.close()
+connectionSocket.close()
